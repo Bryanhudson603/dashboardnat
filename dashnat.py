@@ -414,15 +414,8 @@ def calcular_dados_inadimplentes(df):
 
 def calcular_arrecadacao_por_plano(df):
     # Verificar se todas as colunas necessárias estão presentes
-    required_columns = ["Plano", "Cnx Status", "Valor", "Id Cli", "Cidade"]
+    required_columns = ["Plano", "Cnx Status", "Valor", "Id Cli"]
     if all(column in df.columns for column in required_columns):
-        # Adicionar um filtro de cidade
-        cidades = df["Cidade"].unique()
-        cidade_selecionada = st.sidebar.selectbox("Selecione a Cidade", options=cidades)
-        
-        # Filtrar os dados pela cidade selecionada
-        df = df[df["Cidade"] == cidade_selecionada]
-
         # Filtrar os clientes com status conectado
         df_conectados = df[df["Cnx Status"] == "Conectado"]
         
@@ -473,16 +466,13 @@ def calcular_arrecadacao_por_plano(df):
         df_arrecadacao["Valor Médio do Plano"] = df_arrecadacao["Valor Médio do Plano"].apply(lambda x: f"R${x:,.2f}")
         
         # Mostrar a tabela de arrecadação
-        st.write(f"### Arrecadação por Plano - {cidade_selecionada}")
+        st.write("### Arrecadação por Plano")
         st.write(df_arrecadacao)
         
         # Mostrar a soma total
         st.write(f"### Soma Total: R${soma_valor_total:,.2f}")
     else:
         st.warning("O arquivo não contém todas as colunas necessárias.")
-
-# Exemplo de chamada da função (df deve ser definido anteriormente com os dados adequados)
-# calcular_arrecadacao_por_plano(df)
 
 # Menu de seleção do dashboard
 menu = st.sidebar.selectbox("Selecione o Dashboard", ["Clientes Planos e Produtos", "Faturas em Aberto", "Atendimento", "Cliente - Arrecadação por Plano"])
