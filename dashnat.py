@@ -174,7 +174,7 @@ def calcular_dados_faturas(df):
         # Gráfico 1: Quantidade de Faturas
         faturas_counts = df_filtered["Quant Faturas"].value_counts().head(10).reset_index()
         faturas_counts.columns = ["Quant Faturas", "Contagem"]
-        fig_faturas = px.bar(faturas_counts, x="Quant Faturas", y="Contagem", title="Quantidade de Faturas",
+        fig_faturas = px.bar(faturas_counts, x="Quant Faturas", y="Contagem", title="Faturas em aberto (Qtd)",
                              color="Quant Faturas")
         fig_faturas.update_layout(title={'x': 0.5, 'xanchor': 'center'})
         fig_faturas.update_layout(width=fig_width, height=fig_height)
@@ -183,7 +183,7 @@ def calcular_dados_faturas(df):
         # Gráfico 2: Atendimento por Plano
         plano_counts = df_filtered["Plano PPal"].value_counts().head(10).reset_index()
         plano_counts.columns = ["Plano PPal", "Contagem"]
-        fig_plano = px.pie(plano_counts, values="Contagem", names="Plano PPal", title="Atendimento por plano")
+        fig_plano = px.pie(plano_counts, values="Contagem", names="Plano PPal", title="Atendimento por Combo (%)")
         fig_plano.update_traces(textposition='inside', textinfo='percent+label')
         fig_plano.update_layout(title={'x': 0.5, 'xanchor': 'center'})
         fig_plano.update_layout(width=fig_width, height=fig_height)
@@ -192,7 +192,7 @@ def calcular_dados_faturas(df):
         # Gráfico 3: Soma das Faturas
         soma_faturas = df_filtered.groupby("Quant Faturas").agg({"Divida en Aberto": "sum"}).reset_index()
         soma_faturas.columns = ["Quant Faturas", "Soma da Divida em Aberto"]
-        fig_soma_faturas = px.bar(soma_faturas, x="Quant Faturas", y="Soma da Divida em Aberto", title="Soma das Faturas",
+        fig_soma_faturas = px.bar(soma_faturas, x="Quant Faturas", y="Soma da Divida em Aberto", title="Somatório dos Valores (R$)",
                                   color="Quant Faturas")
         fig_soma_faturas.update_layout(title={'x': 0.5, 'xanchor': 'center'})
         fig_soma_faturas.update_layout(width=fig_width, height=fig_height)
@@ -202,7 +202,7 @@ def calcular_dados_faturas(df):
         # Gráfico 4: Cidades com Dívidas
         cidade_counts = df_filtered["Cidade"].value_counts().head(10).reset_index()
         cidade_counts.columns = ["Cidade", "Contagem"]
-        fig_cidade = px.bar(cidade_counts, x="Cidade", y="Contagem", title="Cidades com Dívidas",
+        fig_cidade = px.bar(cidade_counts, x="Cidade", y="Contagem", title="Inadimplentes por Cidade",
                             color="Cidade")
         fig_cidade.update_layout(title={'x': 0.5, 'xanchor': 'center'})
         fig_cidade.update_layout(width=fig_width, height=fig_height)
@@ -215,31 +215,31 @@ def calcular_dados_faturas(df):
             st.write("**Top 10**")
 
             top10_faturas = faturas_counts.head(10).copy()
-            top10_faturas.index += 1
+            top10_soma_faturas = soma_faturas.head(10).copy()
+
+            # Junção dos Top 10 Quantidade de Faturas e Soma das Faturas
+            top10_combined = pd.merge(top10_faturas, top10_soma_faturas, on="Quant Faturas", how="outer")
+            top10_combined.index += 1
+
             top10_planos = plano_counts.head(10).copy()
             top10_planos.index += 1
             top10_cidades = cidade_counts.head(10).copy()
             top10_cidades.index += 1
-            top10_soma_faturas = soma_faturas.head(10).copy()
-            top10_soma_faturas.index += 1
 
             col_top10_1, col_top10_2 = st.columns(2)
 
             with col_top10_1:
-                st.write("Top 10 Quantidade de Faturas:")
-                st.write(top10_faturas)
+                st.write("Top 10 Quantidade e Soma das Faturas:")
+                st.write(top10_combined)
 
             with col_top10_2:
                 st.write("Top 10 Planos:")
                 st.write(top10_planos)
                 st.write("Top 10 Cidades:")
                 st.write(top10_cidades)
-                st.write("Top 10 Soma das Faturas:")
-                st.write(top10_soma_faturas)
+
     else:
         st.warning("O arquivo não contém todas as colunas necessárias.")
-
-# Função para calcular os dados do dashboard de Inadimplentes
 
 # Função para calcular os dados de inadimplentes
 def calcular_dados_inadimplentes(df):
@@ -411,10 +411,18 @@ def calcular_dados_inadimplentes(df):
 
 # Função para calcular e exibir a arrecadação por plano
 
+
 def calcular_arrecadacao_por_plano(df):
     # Verificar se todas as colunas necessárias estão presentes
-    required_columns = ["Plano", "Cnx Status", "Valor", "Id Cli"]
+    required_columns = ["Plano", "Cnx Status", "Valor", "Id Cli", "Cidade"]
     if all(column in df.columns for column in required_columns):
+        # Adicionar um filtro de cidade
+        cidades = df["Cidade"].unique()
+        cidade_selecionada = st.sidebar.selectbox("Selecione a Cidade", options=cidades)
+        
+        # Filtrar os dados pela cidade selecionada
+        df = df[df["Cidade"] == cidade_selecionada]
+
         # Filtrar os clientes com status conectado
         df_conectados = df[df["Cnx Status"] == "Conectado"]
         
@@ -457,18 +465,27 @@ def calcular_arrecadacao_por_plano(df):
         df_arrecadacao = df_arrecadacao.sort_values(by="Plano_Numérico")
         df_arrecadacao = df_arrecadacao.drop(columns=["Plano_Numérico"])
         
+        # Calcular a soma de todos os valores da coluna "Valor Total"
+        soma_valor_total = df_arrecadacao["Valor Total"].sum()
+        
         # Formatando os valores como moeda
         df_arrecadacao["Valor Total"] = df_arrecadacao["Valor Total"].apply(lambda x: f"R${x:,.2f}")
         df_arrecadacao["Valor Médio do Plano"] = df_arrecadacao["Valor Médio do Plano"].apply(lambda x: f"R${x:,.2f}")
         
         # Mostrar a tabela de arrecadação
-        st.write("### Arrecadação por Plano")
+        st.write(f"### Arrecadação por Plano - {cidade_selecionada}")
         st.write(df_arrecadacao)
+        
+        # Mostrar a soma total
+        st.write(f"### Soma Total: R${soma_valor_total:,.2f}")
     else:
         st.warning("O arquivo não contém todas as colunas necessárias.")
 
+# Exemplo de chamada da função (df deve ser definido anteriormente com os dados adequados)
+# calcular_arrecadacao_por_plano(df)
+
 # Menu de seleção do dashboard
-menu = st.sidebar.selectbox("Selecione o Dashboard", ["Inadimplentes", "Faturas", "Atendimento", "Arrecadação por Plano"])
+menu = st.sidebar.selectbox("Selecione o Dashboard", ["Clientes Planos e Produtos", "Faturas em Aberto", "Atendimento", "Cliente - Arrecadação por Plano"])
 
 # Upload do arquivo CSV
 uploaded_file = st.sidebar.file_uploader("Escolha um arquivo CSV", type=["csv"])
@@ -476,12 +493,11 @@ uploaded_file = st.sidebar.file_uploader("Escolha um arquivo CSV", type=["csv"])
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file, delimiter=';', encoding='ISO-8859-1')
 
-    if menu == "Inadimplentes":
+    if menu == "Clientes Planos e Produtos":
         calcular_dados_inadimplentes(df)
-    
-    elif menu == "Faturas":
+    elif menu == "Faturas em Aberto":
         calcular_dados_faturas(df)
     elif menu == "Atendimento":
         calcular_dados_atendimento(df)
-    elif menu == "Arrecadação por Plano":
+    elif menu == "Cliente - Arrecadação por Plano":
         calcular_arrecadacao_por_plano(df)
